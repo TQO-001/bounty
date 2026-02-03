@@ -16,12 +16,13 @@ jobs:
           npx prisma generate
           npm run build
 
-      - name: Deploy to VPS
+- name: Deploy to VPS
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc -i --delete"
-          SOURCE: "./" # We send the whole folder (including .next and node_modules)
+          # Added --exclude='.env' so GitHub doesn't delete your server's secret file
+          ARGS: "-rlgoDzvc -i --delete --exclude='.env'" 
+          SOURCE: "./"
           REMOTE_HOST: "laughtale.co.za"
           REMOTE_USER: "laughtale"
           REMOTE_PORT: "2222"
