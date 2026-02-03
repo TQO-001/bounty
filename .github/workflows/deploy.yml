@@ -1,28 +1,41 @@
-name: Deploy Bounty Tracker
-
+name: Deploy Bounty
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Executing remote ssh commands
+      - name: Install & Build
+        # We build everything on GitHub, including Prisma
+        run: |
+          npm install
+          npx prisma generate
+          npm run build
+
+      - name: Deploy to VPS
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc -i --delete"
+          SOURCE: "./" # We send the whole folder (including .next and node_modules)
+          REMOTE_HOST: "laughtale.co.za"
+          REMOTE_USER: "laughtale"
+          REMOTE_PORT: "2222"
+          TARGET: "/var/www/bounty"
+
+      - name: Restart PM2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}          # Verify if this is HOST or REMOTE_HOST in your secrets
-          username: ${{ secrets.USERNAME }}
+          host: "laughtale.co.za"
+          username: "laughtale"
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 2222
           script: |
             cd /var/www/bounty
-            git pull origin main
-            npm install
-            npx prisma generate
-            npx prisma migrate deploy
-            npm run build
-            pm2 restart bounty || pm2 start npm --name "bounty" -- start
+            # Ensure PM2 starts on the correct port (9000)
+            pm2 delete bounty || true
+            pm2 start npm --name "bounty" -- start -- -p 9000
