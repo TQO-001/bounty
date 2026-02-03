@@ -16,7 +16,7 @@ jobs:
           npx prisma generate
           npm run build
 
-- name: Deploy to VPS
+      - name: Deploy to VPS
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -37,6 +37,7 @@ jobs:
           port: 2222
           script: |
             cd /var/www/bounty
-            # Ensure PM2 starts on the correct port (9000)
+            # This deletes the old process if it exists, then starts a fresh one
             pm2 delete bounty || true
             pm2 start npm --name "bounty" -- start -- -p 9000
+            pm2 save
