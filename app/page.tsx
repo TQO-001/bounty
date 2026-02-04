@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { addJob, getJobs } from './actions';
+import { addJob, getJobs, deleteJob } from './actions';
 
 export default function JobTracker() {
   const [jobs, setJobs] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form State
   const [company, setCompany] = useState("");
@@ -25,148 +25,163 @@ export default function JobTracker() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!company || !position) return;
+    if (!company || !position || isSubmitting) return;
 
-    await addJob({
+    setIsSubmitting(true);
+    
+    const result = await addJob({
       company,
       position,
       status,
       dateApplied: new Date().toISOString().split('T')[0]
     });
 
-    // Reset and Close
-    setCompany("");
-    setPosition("");
-    setStatus("Pending");
-    setIsModalOpen(false);
+    if (result.success) {
+      setCompany("");
+      setPosition("");
+      setStatus("Pending");
+      setIsModalOpen(false);
+      await refreshJobs();
+    } else {
+      alert("Error saving to database. Check server logs.");
+    }
     
-    // Update List
-    refreshJobs();
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (confirm("Delete this application?")) {
+      await deleteJob(id);
+      await refreshJobs();
+    }
   };
 
   const stats = {
     total: jobs.length,
     interviewing: jobs.filter(j => j.status === 'Interviewing').length,
     offers: jobs.filter(j => j.status === 'Offer').length,
-    successRate: jobs.length > 0 
-      ? Math.round(((jobs.filter(j => j.status === 'Interviewing').length + jobs.filter(j => j.status === 'Offer').length) / jobs.length) * 100) 
-      : 0
+    rejected: jobs.filter(j => j.status === 'Rejected').length,
   };
 
-  const filteredJobs = jobs.filter(j => 
-    j.company.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    j.position.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <main className="container">
-      <div className="header">
-        <h1>JOB APPLICATION TRACKER</h1>
-        <div className="subtitle">Track Your Job Search Progress | Stay Organized, Stay Motivated</div>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <header style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '4px solid black', paddingBottom: '20px' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>BOUNTY TRACKER</h1>
+        <p>Job Application Management System</p>
+      </header>
+
+      {/* Stats Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+        <div style={{ padding: '20px', background: 'white', border: '2px solid black', borderLeft: '10px solid black' }}>
+          <h3>Total</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.total}</p>
+        </div>
+        <div style={{ padding: '20px', background: 'white', border: '2px solid black', borderLeft: '10px solid #fbbf24' }}>
+          <h3>Interviewing</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.interviewing}</p>
+        </div>
+        <div style={{ padding: '20px', background: 'white', border: '2px solid black', borderLeft: '10px solid #22c55e' }}>
+          <h3>Offers</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.offers}</p>
+        </div>
+        <div style={{ padding: '20px', background: 'white', border: '2px solid black', borderLeft: '10px solid #ef4444' }}>
+          <h3>Rejected</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.rejected}</p>
+        </div>
       </div>
 
-      <div className="stats-container">
-        <div className="stat-card pending">
-          <span className="stat-number">{stats.total}</span>
-          <span className="stat-label">Total Applications</span>
-        </div>
-        <div className="stat-card interviewing">
-          <span className="stat-number">{stats.interviewing}</span>
-          <span className="stat-label">Active Interviews</span>
-        </div>
-        <div className="stat-card offer">
-          <span className="stat-number">{stats.offers}</span>
-          <span className="stat-label">Offers Received</span>
-        </div>
-        <div className="stat-card rejected">
-          <span className="stat-number">{stats.successRate}%</span>
-          <span className="stat-label">Success Rate</span>
-        </div>
-      </div>
+      <button 
+        onClick={() => setIsModalOpen(true)}
+        style={{ padding: '10px 20px', background: 'black', color: 'white', border: 'none', cursor: 'pointer', marginBottom: '20px' }}
+      >
+        + Add Application
+      </button>
 
-      <div className="controls">
-        <div className="search-box">
-          <input 
-            type="text" 
-            placeholder="Search by company or position..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button className="add-button" onClick={() => setIsModalOpen(true)}>
-          + ADD NEW APPLICATION
-        </button>
-      </div>
-
-      <div className="table-container">
-        <table>
-          <thead>
+      {/* Jobs Table */}
+      <div style={{ border: '2px solid black', background: 'white' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={{ background: '#f8f8f8', borderBottom: '2px solid black' }}>
             <tr>
-              <th>Date</th>
-              <th>Company</th>
-              <th>Position</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Company</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Position</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Date</th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredJobs.length === 0 ? (
-              <tr><td colSpan={5} style={{textAlign: 'center', padding: '40px'}}>No applications found!</td></tr>
-            ) : (
-              filteredJobs.map((job) => (
-                <tr key={job.id}>
-                  <td>{job.dateApplied}</td>
-                  <td><strong>{job.company}</strong></td>
-                  <td>{job.position}</td>
-                  <td><span className={`status-badge ${job.status.toLowerCase()}`}>{job.status}</span></td>
-                  <td><button className="action-btn">Edit</button></td>
-                </tr>
-              ))
-            )}
+            {jobs.map(job => (
+              <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '12px', fontWeight: 'bold' }}>{job.company}</td>
+                <td style={{ padding: '12px' }}>{job.position}</td>
+                <td style={{ padding: '12px' }}>
+                  <span style={{ 
+                    padding: '4px 8px', 
+                    borderRadius: '4px', 
+                    fontSize: '12px',
+                    background: job.status === 'Offer' ? '#dcfce7' : job.status === 'Rejected' ? '#fee2e2' : '#fef3c7'
+                  }}>
+                    {job.status}
+                  </span>
+                </td>
+                <td style={{ padding: '12px' }}>{job.dateApplied}</td>
+                <td style={{ padding: '12px' }}>
+                  <button onClick={() => handleDelete(job.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>Delete</button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Modal Overlay */}
+      {/* Simple Modal */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)} style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{
-            background: 'white', padding: '30px', borderRadius: '8px', width: '400px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-          }}>
-            <h2 style={{ marginBottom: '20px' }}>Add New Application</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', padding: '30px', border: '4px solid black', width: '400px' }}>
+            <h2 style={{ marginBottom: '20px' }}>New Application</h2>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <input 
-                type="text" placeholder="Company Name" required
-                value={company} onChange={e => setCompany(e.target.value)}
-                style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                placeholder="Company" 
+                value={company} 
+                onChange={e => setCompany(e.target.value)}
+                style={{ padding: '10px', border: '2px solid black' }}
+                required
               />
               <input 
-                type="text" placeholder="Position" required
-                value={position} onChange={e => setPosition(e.target.value)}
-                style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                placeholder="Position" 
+                value={position} 
+                onChange={e => setPosition(e.target.value)}
+                style={{ padding: '10px', border: '2px solid black' }}
+                required
               />
               <select 
-                value={status} onChange={e => setStatus(e.target.value)}
-                style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                value={status} 
+                onChange={e => setStatus(e.target.value)}
+                style={{ padding: '10px', border: '2px solid black' }}
               >
                 <option value="Pending">Pending</option>
                 <option value="Interviewing">Interviewing</option>
                 <option value="Offer">Offer</option>
                 <option value="Rejected">Rejected</option>
               </select>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" className="add-button" style={{ flex: 1 }}>Save Application</button>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ 
-                  flex: 1, padding: '10px', background: '#eee', border: 'none', borderRadius: '4px', cursor: 'pointer' 
-                }}>Cancel</button>
-              </div>
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                style={{ padding: '12px', background: 'black', color: 'white', border: 'none', cursor: 'pointer' }}
+              >
+                {isSubmitting ? "Saving..." : "Save Application"}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Cancel
+              </button>
             </form>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

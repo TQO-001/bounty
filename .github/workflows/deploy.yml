@@ -18,8 +18,8 @@ jobs:
       - name: Install & Build
         run: |
           npm ci
-          # Provide a dummy URL for generation during build if needed
-          DATABASE_URL="file:./dev.db" npx prisma generate 
+          # We add this to ensure the types are exactly what the build expects
+          DATABASE_URL="file:./dev.db" npx prisma generate
           npm run build
 
       - name: Deploy to VPS
