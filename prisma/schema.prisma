@@ -1,9 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "sqlite"
+  // Hardcoding the relative path ensures the engine finds it every time
+  url      = "file:./dev.db"
 }
 
 model Job {
