@@ -3,20 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-// Robust Prisma initialization
-const prismaClientSingleton = () => {
-  return new PrismaClient({
-    log: ['error', 'warn'],
-  });
-};
-
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
-}
-
-const prisma = globalThis.prisma ?? prismaClientSingleton();
-
-if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma;
+const prisma = new PrismaClient();
 
 export async function addJob(data: { 
   company: string; 
@@ -36,10 +23,11 @@ export async function addJob(data: {
     });
     
     revalidatePath("/");
+    // Crucial: Convert to plain object to prevent "Hanging Action"
     return { success: true, data: JSON.parse(JSON.stringify(newJob)) };
   } catch (error) {
     console.error("DATABASE_WRITE_ERROR:", error);
-    return { success: false, error: "Database busy or write failed" };
+    return { success: false, error: "Database Write Failed" };
   }
 }
 
@@ -50,16 +38,13 @@ export async function getJobs() {
     });
     return JSON.parse(JSON.stringify(jobs));
   } catch (error) {
-    console.error("FETCH_ERROR:", error);
     return [];
   }
 }
 
 export async function deleteJob(id: number) {
   try {
-    await prisma.job.delete({
-      where: { id }
-    });
+    await prisma.job.delete({ where: { id } });
     revalidatePath("/");
     return { success: true };
   } catch (error) {
