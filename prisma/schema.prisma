@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,8 +10,8 @@ model Job {
   id          Int      @id @default(autoincrement())
   company     String
   position    String
-  dateApplied DateTime
-  status      String   // Pending, Interviewing, Offer, Rejected
+  dateApplied String
+  status      String
   notes       String?
   createdAt   DateTime @default(now())
 }

@@ -9,26 +9,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
       - name: Install & Build
-        # We build everything on GitHub, including Prisma
         run: |
-          npm install
-          npx prisma generate
+          npm ci
+          # Provide a dummy URL for generation during build if needed
+          DATABASE_URL="file:./dev.db" npx prisma generate 
           npm run build
 
       - name: Deploy to VPS
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Added --exclude='.env' so GitHub doesn't delete your server's secret file
-          ARGS: "-rlgoDzvc -i --delete --exclude='.env'" 
+          # Keep excluding .env and .db to protect production data
+          ARGS: "-rlgoDzvc -i --delete --exclude='.env' --exclude='node_modules' --exclude='.git' --exclude='*.db' --exclude='*.db-journal'"
           SOURCE: "./"
           REMOTE_HOST: "laughtale.co.za"
           REMOTE_USER: "laughtale"
           REMOTE_PORT: "2222"
           TARGET: "/var/www/bounty"
 
-      - name: Restart PM2
+      - name: Run Migrations & Restart
         uses: appleboy/ssh-action@master
         with:
           host: "laughtale.co.za"
@@ -37,7 +43,16 @@ jobs:
           port: 2222
           script: |
             cd /var/www/bounty
-            # This deletes the old process if it exists, then starts a fresh one
+            # Ensure the VPS environment is ready
+            npm ci --production
+            
+            # Use the local .env file on the VPS for these commands
+            export $(grep -v '^#' .env | xargs)
+            
+            npx prisma generate
+            npx prisma migrate deploy
+            
+            # Restart the app
             pm2 delete bounty || true
             pm2 start npm --name "bounty" -- start -- -p 9000
             pm2 save
