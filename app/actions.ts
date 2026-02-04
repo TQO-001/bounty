@@ -3,15 +3,9 @@
 import { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-// Robust Prisma initialization for Next.js 15/16
+// Robust Prisma initialization for Next.js 15+
 const prismaClientSingleton = () => {
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL || "file:./dev.db",
-      },
-    },
-  });
+  return new PrismaClient();
 };
 
 declare global {
