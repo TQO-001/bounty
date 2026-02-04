@@ -3,16 +3,24 @@
 import { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-// Prevent multiple instances of Prisma Client in development
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ["query"],
+// Robust Prisma initialization for Next.js 15/16
+const prismaClientSingleton = () => {
+  return new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL || "file:./dev.db",
+      },
+    },
   });
+};
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+declare global {
+  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+}
+
+const prisma = globalThis.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma;
 
 export async function addJob(data: { 
   company: string; 
@@ -21,21 +29,21 @@ export async function addJob(data: {
   dateApplied: string 
 }) {
   try {
-    await prisma.job.create({
+    const newJob = await prisma.job.create({
       data: {
         company: data.company,
         position: data.position,
         status: data.status,
         dateApplied: data.dateApplied,
-        notes: "", // Default empty notes to avoid null issues
+        notes: "", 
       },
     });
     
     revalidatePath("/");
-    return { success: true };
+    return { success: true, data: newJob };
   } catch (error) {
-    console.error("Database Error:", error);
-    return { success: false, error: "Failed to save application" };
+    console.error("DATABASE_ERROR:", error);
+    return { success: false, error: String(error) };
   }
 }
 
@@ -45,7 +53,7 @@ export async function getJobs() {
       orderBy: { createdAt: 'desc' }
     });
   } catch (error) {
-    console.error("Fetch Error:", error);
+    console.error("FETCH_ERROR:", error);
     return [];
   }
 }
@@ -58,24 +66,7 @@ export async function deleteJob(id: number) {
     revalidatePath("/");
     return { success: true };
   } catch (error) {
-    return { success: false };
-  }
-}
-
-export async function updateJob(id: number, data: {
-  company?: string;
-  position?: string;
-  status?: string;
-  notes?: string;
-}) {
-  try {
-    await prisma.job.update({
-      where: { id },
-      data
-    });
-    revalidatePath("/");
-    return { success: true };
-  } catch (error) {
+    console.error("DELETE_ERROR:", error);
     return { success: false };
   }
 }
