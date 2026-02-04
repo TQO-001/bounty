@@ -3,9 +3,11 @@
 import { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-// Robust Prisma initialization for Next.js 15+
+// Robust Prisma initialization
 const prismaClientSingleton = () => {
-  return new PrismaClient();
+  return new PrismaClient({
+    log: ['error', 'warn'],
+  });
 };
 
 declare global {
@@ -34,18 +36,19 @@ export async function addJob(data: {
     });
     
     revalidatePath("/");
-    return { success: true, data: newJob };
+    return { success: true, data: JSON.parse(JSON.stringify(newJob)) };
   } catch (error) {
-    console.error("DATABASE_ERROR:", error);
-    return { success: false, error: String(error) };
+    console.error("DATABASE_WRITE_ERROR:", error);
+    return { success: false, error: "Database busy or write failed" };
   }
 }
 
 export async function getJobs() {
   try {
-    return await prisma.job.findMany({
+    const jobs = await prisma.job.findMany({
       orderBy: { createdAt: 'desc' }
     });
+    return JSON.parse(JSON.stringify(jobs));
   } catch (error) {
     console.error("FETCH_ERROR:", error);
     return [];
@@ -60,7 +63,6 @@ export async function deleteJob(id: number) {
     revalidatePath("/");
     return { success: true };
   } catch (error) {
-    console.error("DELETE_ERROR:", error);
     return { success: false };
   }
 }
