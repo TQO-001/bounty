@@ -1,0 +1,31 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/bounty
+            echo "Pulling latest code..."
+            git pull origin main
+            echo "Installing dependencies..."
+            npm install --production=false
+            echo "Building..."
+            npm run build
+            echo "Running migrations..."
+            npm run db:migrate
+            echo "Restarting PM2..."
+            pm2 reload ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
+            pm2 save
+            echo "Deploy complete"
