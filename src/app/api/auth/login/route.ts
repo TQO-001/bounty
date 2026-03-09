@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/db"
+import { getUserByEmail } from "@/lib/db/queries/users"
 import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth"
-
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, password } = await req.json()
     if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 })
-
-    const users = await sql`SELECT * FROM users WHERE email = ${email.toLowerCase()} LIMIT 1`
-    if (users.length === 0) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-
-    const user = users[0]
-    const valid = await verifyPassword(password, user.password_hash)
-    if (!valid) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-
-    const token = await createToken(user)
+    const user = await getUserByEmail(email)
+    if (!user || !await verifyPassword(password, user.password_hash)) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    const token = await createToken({ userId: user.id, name: user.name, email: user.email })
     await setAuthCookie(token)
-    return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Login failed" }, { status: 500 })
-  }
+    return NextResponse.json({ user: { id: user.id, email: user.email, name: user.name } })
+  } catch (e) { console.error(e); return NextResponse.json({ error: "Server error" }, { status: 500 }) }
 }

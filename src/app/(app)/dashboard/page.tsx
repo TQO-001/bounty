@@ -2,84 +2,43 @@ import { getAuthUser } from "@/lib/auth"
 import { getDashboardStats } from "@/lib/db/queries/applications"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { STATUS_LABELS, STATUS_ORDER } from "@/types"
+import { Briefcase, TrendingUp, Star, Award } from "lucide-react"
 
 export default async function DashboardPage() {
   const user = await getAuthUser()
   if (!user) redirect("/login")
-
   const stats = await getDashboardStats(user.userId)
-
-  const statCards = [
-    { label: "Total applications", value: stats.total, color: "text-white" },
-    { label: "Active right now", value: stats.active, color: "text-amber-400" },
-    { label: "Applied this week", value: stats.this_week, color: "text-blue-400" },
-    { label: "Response rate", value: stats.response_rate + "%", color: "text-green-400" },
-    { label: "Interview rate", value: stats.interview_rate + "%", color: "text-purple-400" },
-    { label: "Offer rate", value: stats.offer_rate + "%", color: "text-emerald-400" },
+  const cards = [
+    { label: "Total applications", value: stats.total, icon: Briefcase, href: "/applications", color: "#f59e0b" },
+    { label: "Active pipeline", value: stats.active, icon: TrendingUp, href: "/applications", color: "#93c5fd" },
+    { label: "Response rate", value: stats.response_rate + "%", icon: Star, href: "/applications?status=interview", color: "#c4b5fd" },
+    { label: "Offer rate", value: stats.offer_rate + "%", icon: Award, href: "/applications?status=offer", color: "#34d399" },
   ]
-
-  const activeStatuses = STATUS_ORDER.filter(s => stats.by_status[s] > 0)
-
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
   return (
-    <div className="p-8 max-w-5xl">
-      {/* Header */}
+    <div className="px-8 py-8 max-w-5xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">
-          Hey, {user.name.split(" ")[0]} 👋
-        </h1>
-        <p className="text-zinc-400 text-sm mt-1">
-          {stats.total === 0
-            ? "Start by adding your first application."
-            : `You have ${stats.active} active application${stats.active !== 1 ? "s" : ""} in your pipeline.`}
-        </p>
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>{greeting}, {user.name.split(" ")[0]} 👋</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--muted-2)" }}>Here's your job search at a glance.</p>
       </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-        {statCards.map(card => (
-          <div key={card.label} className="bg-[#161616] border border-white/[0.07] rounded-xl p-5">
-            <p className="text-xs text-zinc-500 mb-1">{card.label}</p>
-            <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {cards.map(c => (
+          <Link key={c.label} href={c.href} className="rounded-xl p-5 block transition-all"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.borderColor="var(--amber-border)")}
+            onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.borderColor="var(--border)")}>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: c.color+"1a", color: c.color }}><c.icon size={18}/></div>
+            <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>{c.value}</p>
+            <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{c.label}</p>
+          </Link>
         ))}
       </div>
-
-      {/* Status breakdown */}
-      {stats.total > 0 && (
-        <div className="bg-[#161616] border border-white/[0.07] rounded-xl p-6 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Status breakdown</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {activeStatuses.map(status => (
-              <Link
-                key={status}
-                href={"/applications?status=" + status}
-                className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg p-3 transition-colors group"
-              >
-                <p className="text-xs text-zinc-500 mb-1 capitalize">{STATUS_LABELS[status]}</p>
-                <p className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">
-                  {stats.by_status[status]}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {stats.total === 0 && (
-        <div className="bg-[#161616] border border-white/[0.07] border-dashed rounded-xl p-12 text-center">
-          <p className="text-4xl mb-4">🎯</p>
-          <h3 className="text-white font-semibold mb-2">Track your first application</h3>
-          <p className="text-zinc-400 text-sm mb-6">
-            Add jobs you want to apply to or have already applied for.
-          </p>
-          <Link href="/applications/new"
-            className="inline-flex bg-amber-500 hover:bg-amber-400 text-black font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
-            Add application
-          </Link>
-        </div>
-      )}
+      <div className="flex gap-4 flex-wrap">
+        <Link href="/applications" className="px-5 py-2.5 rounded-lg text-sm font-semibold text-black" style={{ background: "var(--amber)" }}>Open Job Board</Link>
+        <Link href="/calendar" className="px-5 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border-2)", color: "var(--muted-2)" }}>Calendar</Link>
+        <Link href="/documents" className="px-5 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border-2)", color: "var(--muted-2)" }}>Documents</Link>
+      </div>
     </div>
   )
 }

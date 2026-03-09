@@ -3,163 +3,58 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-
-const STATUSES = ["wishlist","applied","phone_screen","interview","offer","rejected","withdrawn","ghosted"]
-const WORK_TYPES = ["onsite","remote","hybrid"]
-const PRIORITIES = ["low","medium","high"]
-
+const S_LABELS: Record<string,string> = {wishlist:"Wishlist",applied:"Applied",phone_screen:"Phone Screen",interview:"Interview",offer:"Offer",rejected:"Rejected",withdrawn:"Withdrawn",ghosted:"Ghosted"}
 export default function NewApplicationPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-  const [form, setForm] = useState({
-    company_name: "", job_title: "", job_url: "",
-    status: "wishlist", priority: "medium", work_type: "onsite",
-    location: "", salary_min: "", salary_max: "",
-    application_date: "", source: "", excitement_level: "3",
-    notes: "", job_description: "",
-  })
-
-  function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    try {
-      const payload = {
-        ...form,
-        salary_min: form.salary_min ? parseInt(form.salary_min) : undefined,
-        salary_max: form.salary_max ? parseInt(form.salary_max) : undefined,
-        excitement_level: form.excitement_level ? parseInt(form.excitement_level) : undefined,
-        job_url: form.job_url || undefined,
-        location: form.location || undefined,
-        application_date: form.application_date || undefined,
-        source: form.source || undefined,
-        notes: form.notes || undefined,
-        job_description: form.job_description || undefined,
-      }
-      const res = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || "Failed to save"); return }
-      router.push("/applications/" + data.id)
-    } catch {
-      setError("Something went wrong.")
-    } finally {
-      setLoading(false)
-    }
+  const [form, setForm] = useState({company_name:"",job_title:"",job_url:"",status:"wishlist",priority:"medium",work_type:"onsite",location:"",salary_min:"",salary_max:"",application_date:"",source:"",excitement_level:"3",notes:"",job_description:"",deadline_date:"",next_follow_up_date:""})
+  function set(k: string, v: string){ setForm(p=>({...p,[k]:v})) }
+  async function submit(e: React.FormEvent){
+    e.preventDefault();setSaving(true);setError("")
+    const res = await fetch("/api/applications",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,salary_min:form.salary_min?parseInt(form.salary_min):null,salary_max:form.salary_max?parseInt(form.salary_max):null,excitement_level:form.excitement_level?parseInt(form.excitement_level):null,job_url:form.job_url||null,location:form.location||null,application_date:form.application_date||null,source:form.source||null,notes:form.notes||null,job_description:form.job_description||null,deadline_date:form.deadline_date||null,next_follow_up_date:form.next_follow_up_date||null})})
+    if(res.ok){const a=await res.json();router.push("/applications/"+a.id);router.refresh()}
+    else{const d=await res.json();setError(d.error||"Failed");setSaving(false)}
   }
-
   return (
-    <div className="p-8 max-w-2xl">
-      <div className="flex items-center gap-3 mb-8">
-        <Link href="/applications" className="text-zinc-400 hover:text-white transition-colors">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="text-2xl font-bold text-white">New Application</h1>
+    <div style={{background:"var(--bg)",minHeight:"100vh"}}>
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-6 py-3" style={{background:"var(--surface)",borderBottom:"1px solid var(--border)"}}>
+        <Link href="/applications" className="flex items-center gap-1.5 text-sm" style={{color:"var(--muted-2)"}}><ArrowLeft size={15}/>Back</Link>
+        <span style={{color:"var(--border-2)"}}>/</span>
+        <span className="text-sm font-medium" style={{color:"var(--text)"}}>Add application</span>
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg">
-            {error}
+      <div className="max-w-2xl px-8 py-8">
+        {error&&<div className="mb-5 px-4 py-3 rounded-lg text-sm" style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5"}}>{error}</div>}
+        <form onSubmit={submit} className="space-y-5">
+          <Section title="Position">
+            <div className="grid grid-cols-2 gap-4"><F l="Company *" k="company_name" v={form.company_name} set={set} req/><F l="Job title *" k="job_title" v={form.job_title} set={set} req/></div>
+            <F l="Job URL" k="job_url" v={form.job_url} set={set} type="url"/>
+            <div className="grid grid-cols-3 gap-4">
+              <Sel l="Status" k="status" v={form.status} set={set} opts={Object.keys(S_LABELS)} lbls={S_LABELS}/>
+              <Sel l="Work type" k="work_type" v={form.work_type} set={set} opts={["onsite","remote","hybrid"]}/>
+              <F l="Location" k="location" v={form.location} set={set}/>
+            </div>
+          </Section>
+          <Section title="Compensation & Dates">
+            <div className="grid grid-cols-2 gap-4"><F l="Min salary" k="salary_min" v={form.salary_min} set={set} type="number"/><F l="Max salary" k="salary_max" v={form.salary_max} set={set} type="number"/></div>
+            <div className="grid grid-cols-2 gap-4"><F l="Application date" k="application_date" v={form.application_date} set={set} type="date"/><F l="Source" k="source" v={form.source} set={set}/></div>
+            <div className="grid grid-cols-2 gap-4"><F l="Deadline" k="deadline_date" v={form.deadline_date} set={set} type="date"/><F l="Follow-up date" k="next_follow_up_date" v={form.next_follow_up_date} set={set} type="date"/></div>
+            <div className="grid grid-cols-2 gap-4">
+              <Sel l="Priority" k="priority" v={form.priority} set={set} opts={["low","medium","high"]}/>
+              <div><label className="block text-xs mb-1.5" style={{color:"var(--muted)"}}>Excitement ({form.excitement_level}/5)</label><input type="range" min="1" max="5" value={form.excitement_level} onChange={e=>set("excitement_level",e.target.value)} className="w-full" style={{accentColor:"var(--amber)",marginTop:4}}/></div>
+            </div>
+          </Section>
+          <Section title="Notes"><TA l="Personal notes" k="notes" v={form.notes} set={set} rows={3}/><TA l="Job description" k="job_description" v={form.job_description} set={set} rows={4}/></Section>
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-black disabled:opacity-50" style={{background:"var(--amber)"}}>{saving?"Saving…":"Add application"}</button>
+            <Link href="/applications" className="px-4 py-2.5 text-sm" style={{color:"var(--muted-2)"}}>Cancel</Link>
           </div>
-        )}
-
-        {/* Core info */}
-        <section className="bg-[#161616] border border-white/[0.07] rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-300">Position</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Company *" value={form.company_name} onChange={v => set("company_name", v)} required placeholder="Acme Corp" />
-            <Input label="Job title *" value={form.job_title} onChange={v => set("job_title", v)} required placeholder="Software Engineer" />
-          </div>
-          <Input label="Job URL" value={form.job_url} onChange={v => set("job_url", v)} placeholder="https://..." type="url" />
-          <div className="grid grid-cols-3 gap-4">
-            <Select label="Status" value={form.status} onChange={v => set("status", v)} options={STATUSES} />
-            <Select label="Work type" value={form.work_type} onChange={v => set("work_type", v)} options={WORK_TYPES} />
-            <Input label="Location" value={form.location} onChange={v => set("location", v)} placeholder="Remote / City" />
-          </div>
-        </section>
-
-        {/* Details */}
-        <section className="bg-[#161616] border border-white/[0.07] rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-300">Details</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Salary min" value={form.salary_min} onChange={v => set("salary_min", v)} type="number" placeholder="60000" />
-            <Input label="Salary max" value={form.salary_max} onChange={v => set("salary_max", v)} type="number" placeholder="90000" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Application date" value={form.application_date} onChange={v => set("application_date", v)} type="date" />
-            <Input label="Source" value={form.source} onChange={v => set("source", v)} placeholder="LinkedIn, referral..." />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">Excitement level ({form.excitement_level}/5)</label>
-            <input type="range" min="1" max="5" value={form.excitement_level} onChange={e => set("excitement_level", e.target.value)}
-              className="w-full accent-amber-500" />
-          </div>
-          <Select label="Priority" value={form.priority} onChange={v => set("priority", v)} options={PRIORITIES} />
-        </section>
-
-        {/* Notes */}
-        <section className="bg-[#161616] border border-white/[0.07] rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-300">Notes</h2>
-          <Textarea label="Personal notes" value={form.notes} onChange={v => set("notes", v)} placeholder="Anything to remember about this role..." rows={3} />
-          <Textarea label="Job description" value={form.job_description} onChange={v => set("job_description", v)} placeholder="Paste the job description here..." rows={4} />
-        </section>
-
-        <div className="flex items-center gap-3">
-          <button type="submit" disabled={loading}
-            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
-            {loading ? "Saving..." : "Save application"}
-          </button>
-          <Link href="/applications" className="text-zinc-400 hover:text-white text-sm transition-colors px-4 py-2.5">
-            Cancel
-          </Link>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }
-
-function Input({ label, value, onChange, required, placeholder, type = "text" }: {
-  label: string; value: string; onChange: (v: string) => void
-  required?: boolean; placeholder?: string; type?: string
-}) {
-  return (
-    <div>
-      <label className="block text-xs text-zinc-400 mb-1.5">{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder}
-        className="w-full bg-white/[0.04] border border-white/[0.08] text-white placeholder-zinc-600 px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-amber-500/50 transition-colors" />
-    </div>
-  )
-}
-
-function Select({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (v: string) => void; options: string[]
-}) {
-  return (
-    <div>
-      <label className="block text-xs text-zinc-400 mb-1.5">{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-[#111] border border-white/[0.08] text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-amber-500/50 transition-colors">
-        {options.map(o => <option key={o} value={o}>{o.replace(/_/g, " ")}</option>)}
-      </select>
-    </div>
-  )
-}
-
-function Textarea({ label, value, onChange, placeholder, rows = 3 }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number
-}) {
-  return (
-    <div>
-      <label className="block text-xs text-zinc-400 mb-1.5">{label}</label>
-      <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-        className="w-full bg-white/[0.04] border border-white/[0.08] text-white placeholder-zinc-600 px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-amber-500/50 resize-none transition-colors" />
-    </div>
-  )
-}
+function Section({title,children}:{title:string;children:React.ReactNode}){return<div className="rounded-xl p-6 space-y-4" style={{background:"var(--surface)",border:"1px solid var(--border)"}}><h2 className="text-xs font-semibold uppercase tracking-wider" style={{color:"var(--muted)"}}>{title}</h2>{children}</div>}
+function F({l,k,v,set,req,type="text"}:{l:string;k:string;v:string;set:(k:string,v:string)=>void;req?:boolean;type?:string}){return<div><label className="block text-xs mb-1.5" style={{color:"var(--muted)"}}>{l}</label><input type={type} value={v} onChange={e=>set(k,e.target.value)} required={req} className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none" style={{background:"var(--input-bg)",border:"1px solid var(--border-2)",color:"var(--text)"}}/></div>}
+function Sel({l,k,v,set,opts,lbls}:{l:string;k:string;v:string;set:(k:string,v:string)=>void;opts:string[];lbls?:Record<string,string>}){return<div><label className="block text-xs mb-1.5" style={{color:"var(--muted)"}}>{l}</label><select value={v} onChange={e=>set(k,e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none" style={{background:"var(--surface-3)",border:"1px solid var(--border-2)",color:"var(--text)"}}>{opts.map(o=><option key={o} value={o}>{lbls?.[o]??o.replace(/_/g," ")}</option>)}</select></div>}
+function TA({l,k,v,set,rows=3}:{l:string;k:string;v:string;set:(k:string,v:string)=>void;rows?:number}){return<div><label className="block text-xs mb-1.5" style={{color:"var(--muted)"}}>{l}</label><textarea value={v} onChange={e=>set(k,e.target.value)} rows={rows} className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none resize-none" style={{background:"var(--input-bg)",border:"1px solid var(--border-2)",color:"var(--text)"}}/></div>}
