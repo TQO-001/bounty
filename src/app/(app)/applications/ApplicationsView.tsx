@@ -62,8 +62,15 @@ export function ApplicationsView({ allApps, filtered, counts, filterStatus, sear
   if (filters.work_type) apps = apps.filter(a => a.work_type === filters.work_type)
   if (filters.priority) apps = apps.filter(a => a.priority === filters.priority)
   if (filters.salary_min) apps = apps.filter(a => (a.salary_min ?? 0) >= parseInt(filters.salary_min))
+  
+  // FIX: Cast to any to allow dynamic property access for sorting
   const [sf, sd] = sortKey.split(":")
-  apps.sort((a,b) => { const av=(a as Record<string,unknown>)[sf]??""; const bv=(b as Record<string,unknown>)[sf]??""; const c=av<bv?-1:av>bv?1:0; return sd==="asc"?c:-c })
+  apps.sort((a,b) => { 
+    const av = (a as any)[sf] ?? ""; 
+    const bv = (b as any)[sf] ?? ""; 
+    const c = av < bv ? -1 : av > bv ? 1 : 0; 
+    return sd === "asc" ? c : -c 
+  })
 
   async function bulkDelete() {
     if (!selected.size || !confirm(`Delete ${selected.size} application${selected.size>1?"s":""}?`)) return

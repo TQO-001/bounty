@@ -176,7 +176,7 @@ function Sel({ label, value, onChange, options, labels }: { label:string; value:
       <select value={value} onChange={e=>onChange(e.target.value)}
         className="w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none"
         style={{ background: "var(--surface-3)", border: "1px solid var(--border-2)", color: "var(--text)" }}>
-        {options.map(o => <option key={o} value={o}>{labels?.[o] ?? o.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase()) || "—"}</option>)}
+        {options.map(o => <option key={o} value={o}>{(labels?.[o] ?? o.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())) || "—"}</option>)}
       </select>
     </div>
   )
