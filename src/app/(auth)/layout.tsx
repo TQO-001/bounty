@@ -1,14 +1,18 @@
+import Link from "next/link"
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-black font-bold" style={{ background: "var(--amber)" }}>B</div>
-            <span className="text-xl font-bold" style={{ color: "var(--text)" }}>Bounty</span>
-          </div>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>Your job search, organised.</p>
-        </div>
+        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-black font-bold clay-sm"
+            style={{ background: "var(--amber)" }}>B</div>
+          <span className="font-bold text-lg" style={{ color: "var(--text)" }}>Bounty</span>
+        </Link>
+        <p className="text-center text-sm mb-8" style={{ color: "var(--muted-2)" }}>
+          Your job search, organised.
+        </p>
         {children}
       </div>
     </div>

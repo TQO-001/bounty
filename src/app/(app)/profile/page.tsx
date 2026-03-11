@@ -4,7 +4,13 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ name:"", email:"" })
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
-  useEffect(()=>{fetch("/api/profile").then(r=>r.json()).then(u=>{setForm({name:u.name??"",email:u.email??""});setLoading(false)})}, [])
+  useEffect(()=>{
+    fetch("/api/profile")
+      .then(r=>r.json())
+      .then(u=>{ if(u && !u.error) setForm({name:u.name??"",email:u.email??""}) })
+      .catch(()=>{})
+      .finally(()=>setLoading(false))
+  }, [])
   async function submit(e: React.FormEvent){
     e.preventDefault()
     await fetch("/api/profile",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)})

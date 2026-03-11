@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <TopNav userName={user.name} userEmail={email} />
-      <main style={{ paddingTop: "56px" }}>
+      <main style={{ paddingTop: "60px" }}>
         {children}
       </main>
     </div>
